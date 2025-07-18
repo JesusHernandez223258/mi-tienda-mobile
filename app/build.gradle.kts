@@ -1,19 +1,25 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    alias(libs.plugins.kotlin.compose)            // Plugin del compilador de Compose
-    id("kotlin-kapt")
+    alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
+}
+
+configurations {
+    all {
+        exclude(group = "com.intellij", module = "annotations")
+    }
 }
 
 android {
     namespace = "com.mobileshop"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.mobileshop"
-        minSdk = 36
-        targetSdk = 36
+        minSdk = 34
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -40,9 +46,6 @@ android {
         compose = true
         buildConfig = true
     }
-    kapt {
-        correctErrorTypes = true
-    }
 }
 
 dependencies {
@@ -57,14 +60,23 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.hilt.android)
     implementation(libs.androidx.material.icons.extended)
-    kapt(libs.hilt.android.compiler)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.hilt.work)
+    implementation(libs.androidx.biometric)
+    implementation(libs.androidx.hilt.compiler)
+    implementation(libs.androidx.security.crypto.ktx)
+    implementation(libs.androidx.security.crypto)
+    ksp(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.androidx.hilt.common)
+    implementation(libs.androidx.biometric.ktx)
+    ksp(libs.hilt.android.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
     implementation(libs.logging.interceptor)
     implementation(libs.androidx.datastore.preferences)
-    // implementation(libs.androidx.appcompat)
-    // implementation(libs.mediation.test.suite)
     implementation(libs.androidx.runtime.livedata)
     implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)

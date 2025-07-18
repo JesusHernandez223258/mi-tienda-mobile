@@ -28,7 +28,10 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
+            // local
             .baseUrl("http://10.0.2.2:3000/api/v1/")
+            // Datos
+            //.baseUrl("https://fw53z7n5-3000.usw3.devtunnels.ms/api/v1/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

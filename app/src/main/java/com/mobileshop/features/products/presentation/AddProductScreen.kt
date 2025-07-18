@@ -1,7 +1,6 @@
 package com.mobileshop.features.products.presentation
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
@@ -21,21 +20,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
-import com.mobileshop.BuildConfig
-import java.io.File
-
-// Función de ayuda para crear un URI de archivo temporal
-fun Context.createImageUri(): Uri {
-    val file = File.createTempFile("camera_photo_", ".jpg", externalCacheDir)
-    return FileProvider.getUriForFile(
-        this,
-        "${BuildConfig.APPLICATION_ID}.provider",
-        file
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,35 +37,24 @@ fun AddProductScreen(
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
 
-    // 1. LÓGICA PARA PERMISOS
-    // Estado para saber si tenemos el permiso
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-
-    // Launcher para la cámara
+    // Los launchers se definen aquí, en la UI.
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
-            if (success) {
-                // La foto se guardó en el imageUri que ya teníamos
+            if (!success) {
+                imageUri = null // Limpiamos la URI si el usuario cancela la captura
+                Toast.makeText(context, "Captura cancelada", Toast.LENGTH_SHORT).show()
             }
         }
     )
 
-    // Launcher para solicitar el permiso de la cámara
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                hasCameraPermission = true
-                // Opcional: lanzar la cámara inmediatamente después de obtener el permiso
-                val uri = context.createImageUri()
+                // El permiso fue concedido. Ahora que lo tenemos,
+                // le pedimos una URI al ViewModel y lanzamos la cámara.
+                val uri = viewModel.createImageUri(context)
                 imageUri = uri
                 cameraLauncher.launch(uri)
             } else {
@@ -141,13 +116,15 @@ fun AddProductScreen(
             ) {
                 Button(
                     onClick = {
-                        // 2. LÓGICA DEL BOTÓN
-                        if (hasCameraPermission) {
-                            val uri = context.createImageUri()
+                        // ESTA ES LA LÓGICA CENTRAL Y CORREGIDA
+                        if (viewModel.hasCameraPermission(context)) {
+                            // Si ya tenemos permiso, pedimos URI y lanzamos la cámara.
+                            val uri = viewModel.createImageUri(context)
                             imageUri = uri
                             cameraLauncher.launch(uri)
                         } else {
-                            // Si no tenemos permiso, lo pedimos
+                            // Si no tenemos permiso, lanzamos el launcher de permisos.
+                            // El resultado se gestionará en el callback `onResult` del permissionLauncher.
                             permissionLauncher.launch(Manifest.permission.CAMERA)
                         }
                     },
@@ -155,6 +132,7 @@ fun AddProductScreen(
                 ) {
                     Text("Tomar Foto")
                 }
+
                 Button(
                     onClick = {
                         viewModel.createProduct(
@@ -175,7 +153,6 @@ fun AddProductScreen(
                     }
                 }
             }
-
             state.error?.let {
                 Text(text = it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
             }

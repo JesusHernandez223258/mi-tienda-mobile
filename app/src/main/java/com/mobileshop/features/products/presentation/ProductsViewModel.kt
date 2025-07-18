@@ -1,13 +1,18 @@
 package com.mobileshop.features.products.presentation
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mobileshop.core.domain.camera.CameraManager
+import com.mobileshop.features.login.domain.use_case.LogoutUseCase
 import com.mobileshop.features.products.domain.use_case.CreateProductUseCase
 import com.mobileshop.features.products.domain.use_case.GetProductsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -15,11 +20,24 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductsViewModel @Inject constructor(
     private val getProductsUseCase: GetProductsUseCase,
-    private val createProductUseCase: CreateProductUseCase
+    private val createProductUseCase: CreateProductUseCase,
+    private val logoutUseCase: LogoutUseCase,
+    private val cameraManager: CameraManager // Inyección correcta
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProductsState())
     val state = _state.asStateFlow()
+
+    private val _uiEvent = Channel<UIEvent>(Channel.BUFFERED)
+    val uiEvent = _uiEvent.receiveAsFlow()
+
+    fun hasCameraPermission(context: Context): Boolean {
+        return cameraManager.hasCameraPermission(context)
+    }
+
+    fun createImageUri(context: Context): Uri {
+        return cameraManager.createImageUri(context)
+    }
 
     fun getProducts() {
         viewModelScope.launch {
@@ -54,5 +72,16 @@ class ProductsViewModel @Inject constructor(
 
     fun resetProductCreationStatus() {
         _state.update { it.copy(isProductCreated = false) }
+    }
+
+    fun onLogout() {
+        viewModelScope.launch {
+            logoutUseCase()
+            _uiEvent.send(UIEvent.NavigateToLogin)
+        }
+    }
+
+    sealed class UIEvent {
+        object NavigateToLogin : UIEvent()
     }
 }

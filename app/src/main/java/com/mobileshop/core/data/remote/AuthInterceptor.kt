@@ -2,6 +2,7 @@ package com.mobileshop.core.data.remote
 
 import com.mobileshop.core.data.local.TokenManager
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -10,18 +11,18 @@ import javax.inject.Singleton
 
 // data/remote/AuthInterceptor.kt
 @Singleton
-class AuthInterceptor @Inject constructor(private val tokenManager: TokenManager) : Interceptor {
+class AuthInterceptor @Inject constructor(
+    private val tokenManager: TokenManager
+) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        // runBlocking es aceptable aquí porque el interceptor se ejecuta en un hilo de fondo de OkHttp.
-        val token = runBlocking {
-            tokenManager.getToken().first()
+        // Deja claro que token es String?
+        val token: String? = runBlocking { tokenManager.getToken() }
+
+        val requestBuilder = chain.request().newBuilder()
+        if (!token.isNullOrEmpty()) {
+            requestBuilder.addHeader("Authorization", "Bearer $token")
         }
 
-        val request = chain.request().newBuilder()
-        if (token != null) {
-            request.addHeader("Authorization", "Bearer $token")
-        }
-
-        return chain.proceed(request.build())
+        return chain.proceed(requestBuilder.build())
     }
 }

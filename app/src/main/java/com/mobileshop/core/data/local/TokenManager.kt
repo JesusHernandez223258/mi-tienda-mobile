@@ -1,36 +1,34 @@
 package com.mobileshop.core.data.local
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
+import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
+import dagger.hilt.android.qualifiers.ApplicationContext // ✅ Importante
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import androidx.datastore.preferences.core.Preferences
 
 @Singleton
 class TokenManager @Inject constructor(
-    private val dataStore: DataStore<Preferences> // Inyección directa
+    @ApplicationContext private val context: Context // ✅ ESTA LÍNEA ES LA CLAVE
 ) {
+    private val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+    private val prefsName = "secure_prefs"
 
-    companion object {
-        private val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
+    private val sharedPreferences = EncryptedSharedPreferences.create(
+        prefsName,
+        masterKeyAlias,
+        context,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    fun saveToken(token: String) {
+        sharedPreferences.edit().putString("auth_token", token).apply()
     }
 
-    suspend fun saveToken(token: String) {
-        dataStore.edit { preferences ->
-            preferences[AUTH_TOKEN_KEY] = token
-        }
-    }
+    fun getToken(): String? = sharedPreferences.getString("auth_token", null)
 
-    fun getToken(): Flow<String?> {
-        return dataStore.data.map { preferences ->
-            preferences[AUTH_TOKEN_KEY]
-        }
-    }
-
-    suspend fun clearToken() {
-        dataStore.edit { it.clear() }
+    fun clearToken() {
+        sharedPreferences.edit().remove("auth_token").apply()
     }
 }

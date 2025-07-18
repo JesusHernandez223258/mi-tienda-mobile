@@ -13,4 +13,10 @@ interface ProductRepository {
         stock: Int,
         imageUri: Uri?
     ): Result<Unit>
+
+    suspend fun getProductById(id: String): Result<Product>
+    suspend fun updateProduct(id: String, name: String, description: String, price: Double, stock: Int, imageUri: Uri?): Result<Unit>
+    suspend fun deleteProduct(id: String): Result<Unit>
+
+    suspend fun syncPendingProducts()
 }

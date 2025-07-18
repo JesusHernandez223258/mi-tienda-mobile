@@ -3,6 +3,8 @@ package com.mobileshop.core.data.remote
 import com.mobileshop.core.data.remote.dto.ApiResponse
 import com.mobileshop.core.data.remote.dto.GetProductsResponse
 import com.mobileshop.core.data.remote.dto.ProductDto
+import com.mobileshop.core.data.remote.dto.SyncRequest
+import com.mobileshop.core.data.remote.dto.SyncResponseDto
 import com.mobileshop.features.login.data.remote.dto.LoginRequest
 import com.mobileshop.features.login.data.remote.dto.LoginResponse
 import okhttp3.MultipartBody
@@ -11,8 +13,11 @@ import retrofit2.http.Multipart
 import retrofit2.http.Part
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 
 interface ApiService {
 
@@ -24,6 +29,23 @@ interface ApiService {
     @GET("productos")
     suspend fun getProducts(): ApiResponse<GetProductsResponse>
 
+    @GET("productos/{id}")
+    suspend fun getProductById(@Path("id") id: String): ApiResponse<ProductDto>
+
+    @Multipart
+    @PUT("productos/{id}")
+    suspend fun updateProduct(
+        @Path("id") id: String,
+        @Part("nombre") nombre: RequestBody,
+        @Part("descripcion") descripcion: RequestBody,
+        @Part("precio") precio: RequestBody,
+        @Part("stock") stock: RequestBody,
+        @Part imagen: MultipartBody.Part?
+    ): ApiResponse<ProductDto>
+
+    @DELETE("productos/{id}")
+    suspend fun deleteProduct(@Path("id") id: String): Response<Unit>
+
     @Multipart
     @POST("productos")
     suspend fun createProduct(
@@ -33,4 +55,8 @@ interface ApiService {
         @Part("stock") stock: RequestBody,
         @Part imagen: MultipartBody.Part?
     ): ApiResponse<ProductDto>
+
+    // New endpoint for batch sync
+    @POST("productos/sync")
+    suspend fun syncProducts(@Body request: SyncRequest): Response<ApiResponse<SyncResponseDto>>
 }
