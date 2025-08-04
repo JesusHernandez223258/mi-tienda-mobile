@@ -5,8 +5,10 @@ import com.mobileshop.core.data.remote.dto.GetProductsResponse
 import com.mobileshop.core.data.remote.dto.ProductDto
 import com.mobileshop.core.data.remote.dto.SyncRequest
 import com.mobileshop.core.data.remote.dto.SyncResponseDto
-import com.mobileshop.features.login.data.remote.dto.LoginRequest
-import com.mobileshop.features.login.data.remote.dto.LoginResponse
+import com.mobileshop.features.auth.data.remote.dto.LoginRequest
+import com.mobileshop.features.auth.data.remote.dto.LoginResponse
+import com.mobileshop.features.auth.data.remote.dto.RefreshResponse
+import com.mobileshop.features.auth.data.remote.dto.RegisterRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.Multipart
@@ -24,6 +26,12 @@ interface ApiService {
     // --- Auth ---
     @POST("auth/login")
     suspend fun login(@Body request: LoginRequest): Response<ApiResponse<LoginResponse>>
+
+    @POST("auth/register")
+    suspend fun register(@Body request: RegisterRequest): Response<Unit>
+
+    @POST("auth/refresh")
+    suspend fun refreshToken(@Body body: Map<String, String>): Response<ApiResponse<RefreshResponse>>
 
     // --- Products ---
     @GET("productos")
@@ -56,7 +64,9 @@ interface ApiService {
         @Part imagen: MultipartBody.Part?
     ): ApiResponse<ProductDto>
 
-    // New endpoint for batch sync
+    @GET("productos/all-for-sync")
+    suspend fun getAllProductsForSync(): ApiResponse<List<ProductDto>>
+
     @POST("productos/sync")
     suspend fun syncProducts(@Body request: SyncRequest): Response<ApiResponse<SyncResponseDto>>
 }

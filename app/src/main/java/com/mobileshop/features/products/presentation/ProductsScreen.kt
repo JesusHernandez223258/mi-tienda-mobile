@@ -8,8 +8,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ImageNotSupported
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,15 +36,11 @@ import com.mobileshop.navigation.Routes
 fun ProductsScreen(
     viewModel: ProductsViewModel = hiltViewModel(),
     onAddProductClick: () -> Unit,
-    navController: NavController,
-    onProductClick: (String) -> Unit
+    onProductClick: (String) -> Unit,
+    onRegisterClick: () -> Unit,
+    navController: NavController
 ) {
     val state by viewModel.state.collectAsState()
-
-    // Carga de productos solo una vez
-    LaunchedEffect(key1 = true) {
-        viewModel.getProducts()
-    }
 
     // Escucha eventos del ViewModel para navegar al login tras logout
     LaunchedEffect(key1 = true) {
@@ -67,9 +64,16 @@ fun ProductsScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 actions = {
+                    IconButton(onClick = onRegisterClick) {
+                        Icon(
+                            imageVector = Icons.Default.PersonAdd,
+                            contentDescription = "Registrar Administrador",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                     IconButton(onClick = { viewModel.onLogout() }) {
                         Icon(
-                            imageVector = Icons.Default.ExitToApp,
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                             contentDescription = "Cerrar sesión",
                             tint = MaterialTheme.colorScheme.onPrimary
                         )

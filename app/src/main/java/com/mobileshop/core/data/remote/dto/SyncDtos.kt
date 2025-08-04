@@ -1,5 +1,7 @@
 package com.mobileshop.core.data.remote.dto
 
+import com.google.gson.annotations.SerializedName
+
 /**
  * DTO for sending a single product in sync request
  */
@@ -23,6 +25,14 @@ data class SyncRequest(
  */
 data class SyncResultItemDto(
     val tempId: String?,
+    // Usamos @SerializedName para mapear _id de la API a serverId
+    @SerializedName("_id")
+    val serverId: String?,
+    val nombre: String?,
+    val descripcion: String?,
+    val precio: Double?,
+    val stock: Int?,
+    val imagenUrl: String?,
     val success: Boolean,
     val errorMessage: String? = null
 )

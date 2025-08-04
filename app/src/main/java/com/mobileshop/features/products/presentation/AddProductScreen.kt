@@ -1,7 +1,6 @@
 package com.mobileshop.features.products.presentation
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,7 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +20,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 
@@ -33,16 +33,25 @@ fun AddProductScreen(
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("") }
+
+    // Este es el estado que la UI observará para mostrar la imagen.
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // <-- CAMBIO 1: Usaremos una variable temporal para pasar la URI a la cámara.
+    // No es un 'remember' porque no necesita sobrevivir recomposiciones.
+    var tempCameraUri: Uri? = null
+
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
 
-    // Los launchers se definen aquí, en la UI.
+    // <-- CAMBIO 2: Modificamos el callback del launcher de la cámara.
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
-            if (!success) {
-                imageUri = null // Limpiamos la URI si el usuario cancela la captura
+            if (success) {
+                // Si la foto se tomó correctamente, AHORA actualizamos el estado de la UI.
+                imageUri = tempCameraUri
+            } else {
                 Toast.makeText(context, "Captura cancelada", Toast.LENGTH_SHORT).show()
             }
         }
@@ -52,18 +61,15 @@ fun AddProductScreen(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                // El permiso fue concedido. Ahora que lo tenemos,
-                // le pedimos una URI al ViewModel y lanzamos la cámara.
-                val uri = viewModel.createImageUri(context)
-                imageUri = uri
-                cameraLauncher.launch(uri)
+                // Si se concede el permiso, creamos la URI y lanzamos la cámara.
+                tempCameraUri = viewModel.createImageUri(context)
+                cameraLauncher.launch(tempCameraUri!!)
             } else {
                 Toast.makeText(context, "Permiso de cámara denegado", Toast.LENGTH_SHORT).show()
             }
         }
     )
 
-    // Efecto para reaccionar a la creación del producto
     LaunchedEffect(state.isProductCreated) {
         if (state.isProductCreated) {
             Toast.makeText(context, "Producto creado exitosamente", Toast.LENGTH_SHORT).show()
@@ -79,16 +85,16 @@ fun AddProductScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()), // Añadimos scroll por si el teclado ocupa mucho espacio
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Previsualización de la imagen
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(Color.LightGray),
+                    .background(MaterialTheme.colorScheme.surfaceVariant), // Usamos un color del tema
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUri != null) {
@@ -103,28 +109,22 @@ fun AddProductScreen(
                 }
             }
 
-            // Campos del formulario
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth(), minLines = 3)
             OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Precio") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = stock, onValueChange = { stock = it }, label = { Text("Stock") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
 
-            // Botones
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Button(
                     onClick = {
-                        // ESTA ES LA LÓGICA CENTRAL Y CORREGIDA
+                        // <-- CAMBIO 3: La lógica del botón ahora usa la variable temporal.
                         if (viewModel.hasCameraPermission(context)) {
-                            // Si ya tenemos permiso, pedimos URI y lanzamos la cámara.
-                            val uri = viewModel.createImageUri(context)
-                            imageUri = uri
-                            cameraLauncher.launch(uri)
+                            tempCameraUri = viewModel.createImageUri(context)
+                            cameraLauncher.launch(tempCameraUri)
                         } else {
-                            // Si no tenemos permiso, lanzamos el launcher de permisos.
-                            // El resultado se gestionará en el callback `onResult` del permissionLauncher.
                             permissionLauncher.launch(Manifest.permission.CAMERA)
                         }
                     },
@@ -145,7 +145,7 @@ fun AddProductScreen(
                     },
                     enabled = !state.isLoading,
                     modifier = Modifier.weight(1f)
-                )  {
+                ) {
                     if (state.isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                     } else {

@@ -1,66 +1,43 @@
-// SplashViewModel.kt
 package com.mobileshop.navigation
 
-import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobileshop.core.data.local.TokenManager
-import com.mobileshop.core.domain.biometric.AuthenticateUseCase
-import com.mobileshop.core.domain.biometric.BiometricAuthResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
 @HiltViewModel
 class SplashViewModel @Inject constructor(
-    private val tokenManager: TokenManager,
-    private val authenticateUseCase: AuthenticateUseCase
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState = _authState.asStateFlow()
 
-    fun startAuthentication(activity: FragmentActivity) {
+    init {
+        checkToken()
+    }
+
+    private fun checkToken() {
         viewModelScope.launch {
-            val token = tokenManager.getToken()
+            delay(1500) // Un pequeño delay estético para que se vea tu logo
+            val token = tokenManager.getAccessToken()
             if (token.isNullOrEmpty()) {
                 _authState.value = AuthState.Unauthenticated
             } else {
-                if (authenticateUseCase.isBiometricAvailable(activity)) {
-                    when (authenticateUseCase(activity)) {
-                        is BiometricAuthResult.Success -> _authState.value = AuthState.Authenticated
-                        is BiometricAuthResult.UserCancelled,
-                        is BiometricAuthResult.Error -> _authState.value = AuthState.Unauthenticated
-                        else -> {}
-                    }
-                } else {
-                    _authState.value = AuthState.Authenticated
-                }
-            }
-        }
-    }
-
-    fun onBiometricAuthRequested(activity: FragmentActivity) {
-        viewModelScope.launch {
-            when (authenticateUseCase(activity)) {
-                is BiometricAuthResult.Success -> _authState.value = AuthState.Authenticated
-                is BiometricAuthResult.UserCancelled,
-                is BiometricAuthResult.Error -> _authState.value = AuthState.Unauthenticated
-                is BiometricAuthResult.Failed -> {
-                    // user can retry biometric
-                }
+                _authState.value = AuthState.Authenticated
             }
         }
     }
 }
 
+// El estado se simplifica, ya no necesita la parte biométrica
 sealed class AuthState {
-    object Idle : AuthState()
     object Loading : AuthState()
     object Authenticated : AuthState()
     object Unauthenticated : AuthState()
-    object RequiresBiometric : AuthState()
 }

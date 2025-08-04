@@ -5,24 +5,21 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobileshop.core.domain.camera.CameraManager
-import com.mobileshop.features.login.domain.use_case.LogoutUseCase
-import com.mobileshop.features.products.domain.use_case.CreateProductUseCase
-import com.mobileshop.features.products.domain.use_case.GetProductsUseCase
+import com.mobileshop.features.auth.domain.use_case.LogoutUseCase
+import com.mobileshop.features.products.domain.repository.ProductRepository // Importa la interfaz
+import com.mobileshop.features.products.domain.use_case.* // Importa todos los casos de uso
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class ProductsViewModel @Inject constructor(
-    private val getProductsUseCase: GetProductsUseCase,
-    private val createProductUseCase: CreateProductUseCase,
+    private val productRepository: ProductRepository, // Inyectamos el Repositorio
+    private val createProductUseCase: CreateProductUseCase, // Lo mantenemos para crear
     private val logoutUseCase: LogoutUseCase,
-    private val cameraManager: CameraManager // Inyección correcta
+    private val cameraManager: CameraManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProductsState())
@@ -31,48 +28,49 @@ class ProductsViewModel @Inject constructor(
     private val _uiEvent = Channel<UIEvent>(Channel.BUFFERED)
     val uiEvent = _uiEvent.receiveAsFlow()
 
-    fun hasCameraPermission(context: Context): Boolean {
-        return cameraManager.hasCameraPermission(context)
+    init {
+        observeProducts()
+        syncData()
     }
 
-    fun createImageUri(context: Context): Uri {
-        return cameraManager.createImageUri(context)
-    }
-
-    fun getProducts() {
+    private fun observeProducts() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
-            getProductsUseCase().onSuccess { products ->
-                _state.update { it.copy(isLoading = false, products = products) }
-            }.onFailure { error ->
-                _state.update { it.copy(isLoading = false, error = error.message) }
+            _state.update { it.copy(isLoading = true) }
+            productRepository.getProducts().collect { result ->
+                result.onSuccess { products ->
+                    _state.update { it.copy(isLoading = false, products = products, error = null) }
+                }.onFailure { error ->
+                    _state.update { it.copy(isLoading = false, error = error.message) }
+                }
             }
         }
     }
 
-    // CAMBIO: Ahora acepta Uri de imagen
-    fun createProduct(
-        name: String,
-        description: String,
-        price: Double,
-        stock: Int,
-        imageUri: Uri?
-    ) {
+    fun syncData() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, error = null) }
+            _state.update { it.copy(isSyncing = true) } // Opcional: mostrar un indicador de sync
+            productRepository.syncWithRemote()
+            _state.update { it.copy(isSyncing = false) }
+        }
+    }
+
+    fun createProduct(name: String, description: String, price: Double, stock: Int, imageUri: Uri?) {
+        viewModelScope.launch {
             createProductUseCase(name, description, price, stock, imageUri)
-                .onSuccess {
-                    _state.update { it.copy(isLoading = false, isProductCreated = true) }
-                }
                 .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, error = error.message) }
+                    _state.update { it.copy(error = error.message) }
+                }
+                .onSuccess {
+                    _state.update { it.copy(isProductCreated = true) } // Para la navegación
+                    syncData() // Intentamos sincronizar inmediatamente después de crear
                 }
         }
     }
 
-    fun resetProductCreationStatus() {
-        _state.update { it.copy(isProductCreated = false) }
-    }
+    // ... el resto de tus funciones (hasCameraPermission, onLogout, etc.) se mantienen igual
+    fun hasCameraPermission(context: Context): Boolean = cameraManager.hasCameraPermission(context)
+    fun createImageUri(context: Context): Uri = cameraManager.createImageUri(context)
+    fun resetProductCreationStatus() = _state.update { it.copy(isProductCreated = false) }
 
     fun onLogout() {
         viewModelScope.launch {
